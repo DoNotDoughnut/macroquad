@@ -1,6 +1,6 @@
 use crate::time::get_time;
 
-use std::collections::HashMap;
+use ahash::AHashMap as HashMap;
 
 static mut PROFILER: Option<Profiler> = None;
 
@@ -246,10 +246,4 @@ pub struct GpuQuery {
     pub in_progress: bool,
     pub value: u64,
     pub force_resume: bool,
-}
-
-pub fn scene_allocated_memory() -> usize {
-    use crate::experimental::scene;
-
-    scene::allocated_memory()
 }

@@ -7,7 +7,7 @@ license = "MIT/Apache-2.0"
 homepage = "https://github.com/not-fl3/macroquad"
 repository = "https://github.com/not-fl3/macroquad"
 description = """
-Simple and easy to use graphics library
+Fork of a simple and easy to use graphics library
 """
 readme="README.md"
 
@@ -15,8 +15,8 @@ readme="README.md"
 default = ["log-impl"]
 log-impl = ["miniquad/log-impl"]
 
-[package.metadata.docs.rs]
-all-features = true
+# [package.metadata.docs.rs]
+# all-features = true
 
 [dependencies]
 miniquad = "0.3.0-alpha.29"
@@ -24,19 +24,5 @@ quad-rand = "0.2.1"
 glam = {version = "0.10", features = ["scalar-math"] }
 image = { version = "0.23.12", default-features = false, features = ["png", "tga"] }
 macroquad_macro = { version = "0.1.2", path = "macroquad_macro" }
-fontdue = "0.4.0"
-bumpalo = "3.4"
 
-[dev-dependencies]
-macroquad-particles = { path = "./particles" }
-macroquad-tiled = { path = "./tiled" }
-physics-platformer = { path = "./physics-platformer" }
-
-# workaround to fix the examples
-# this allows to use macroquad-particles in examples without two versions of macroquad
-[patch.crates-io]
-macroquad = { path = './' }
-
-#miniquad = { path = '../miniquad' }
-#quad-gl = {path = './quad-gl'}
-
+ahash = "0.7"

@@ -16,7 +16,7 @@
 
 use std::any::{Any, TypeId};
 
-use std::collections::HashMap;
+use ahash::AHashMap as HashMap;
 use std::{
     cell::RefCell,
     ops::{Deref, DerefMut},
