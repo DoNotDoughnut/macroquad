@@ -19,7 +19,7 @@ log-impl = ["miniquad/log-impl"]
 # all-features = true
 
 [dependencies]
-miniquad = "0.3.0-alpha.29"
+miniquad = { git = "https://github.com/DoNotDoughnut/miniquad" }
 quad-rand = { git = "https://github.com/DoNotDoughnut/quad-rand" }
 glam = {version = "0.10", features = ["scalar-math"] }
 image = { version = "0.23.12", default-features = false, features = ["png", "tga"] }
