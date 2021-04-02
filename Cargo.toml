@@ -20,7 +20,7 @@ log-impl = ["miniquad/log-impl"]
 
 [dependencies]
 miniquad = { git = "https://github.com/DoNotDoughnut/miniquad" }
-quad-rand = { git = "https://github.com/DoNotDoughnut/quad-rand" }
+firecore-rand = { git = "https://github.com/DoNotDoughnut/firecore-rand" }
 glam = {version = "0.10", features = ["scalar-math"] }
 image = { version = "0.23.12", default-features = false, features = ["png", "tga"] }
 macroquad_macro = { version = "0.1.2", path = "macroquad_macro" }
