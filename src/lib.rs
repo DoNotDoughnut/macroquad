@@ -55,8 +55,12 @@ pub mod material;
 pub mod math;
 pub mod models;
 pub mod shapes;
+#[cfg(feature = "text")]
+pub mod text;
 pub mod texture;
 pub mod time;
+#[cfg(feature = "ui")]
+pub mod ui;
 pub mod window;
 
 pub mod experimental;
@@ -84,6 +88,8 @@ pub use miniquad;
 use drawing::DrawContext;
 use glam::{vec2, Vec2};
 use quad_gl::{colors::*, Color};
+#[cfg(feature = "ui")]
+use ui::ui_context::UiContext;
 
 struct Context {
     quad_context: QuadContext,
@@ -108,7 +114,11 @@ struct Context {
     input_events: Vec<Vec<MiniquadInputEvent>>,
 
     draw_context: DrawContext,
+    #[cfg(feature = "ui")]
+    ui_context: UiContext,
     coroutines_context: experimental::coroutines::CoroutinesContext,
+    #[cfg(feature = "text")]
+    fonts_storage: text::FontsStorage,
 
     start_time: f64,
     last_frame_time: f64,
@@ -208,6 +218,10 @@ impl Context {
             input_events: Vec::new(),
 
             draw_context: DrawContext::new(&mut ctx),
+            #[cfg(feature = "ui")]
+            ui_context: UiContext::new(&mut ctx),
+            #[cfg(feature = "text")]
+            fonts_storage: text::FontsStorage::new(&mut ctx),
 
             quad_context: ctx,
             coroutines_context: experimental::coroutines::CoroutinesContext::new(),
@@ -221,12 +235,16 @@ impl Context {
     fn begin_frame(&mut self) {
         telemetry::begin_gpu_query("GPU");
 
+        #[cfg(feature = "ui")]
+        self.ui_context.process_input();
         self.clear(Self::DEFAULT_BG_COLOR);
         self.draw_context
             .update_projection_matrix(&mut self.quad_context);
     }
 
     fn end_frame(&mut self) {
+        #[cfg(feature = "ui")]
+        self.ui_context.draw();
 
         self.draw_context
             .perform_render_passes(&mut self.quad_context);

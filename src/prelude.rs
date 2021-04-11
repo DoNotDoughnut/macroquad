@@ -7,6 +7,8 @@ pub use crate::material::*;
 pub use crate::math::*;
 pub use crate::models::*;
 pub use crate::shapes::*;
+#[cfg(feature = "text")]
+pub use crate::text::*;
 pub use crate::texture::*;
 pub use crate::time::*;
 pub use crate::window::*;
