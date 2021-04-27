@@ -58,12 +58,6 @@ use input::{InputCharacter, Key};
 
 pub type Id = u64;
 
-pub struct Texture2D {
-    pub width: u32,
-    pub height: u32,
-    pub data: Vec<u8>,
-}
-
 pub(crate) struct Window {
     pub id: Id,
     pub parent: Option<Id>,
@@ -72,7 +66,7 @@ pub(crate) struct Window {
     // and is going to be set to false at the end of each frame
     pub active: bool,
     // was the window "active" during the last frame
-    // the way to find out wich windows should be rendered after end of the frame and during next frame, before begin_window of the next frame will be called on each window
+    // the way to find out which windows should be rendered after end of the frame and during next frame, before begin_window of the next frame will be called on each window
     pub was_active: bool,
     pub title_height: f32,
     pub position: Vec2,
@@ -83,7 +77,6 @@ pub(crate) struct Window {
     pub cursor: Cursor,
     pub childs: Vec<Id>,
     pub want_close: bool,
-    pub input_focus: Option<Id>,
     pub force_focus: bool,
 }
 
@@ -123,14 +116,8 @@ impl Window {
             childs: vec![],
             want_close: false,
             movable,
-            input_focus: None,
             force_focus,
         }
-    }
-
-    pub fn input_focused(&self, id: Id) -> bool {
-        self.input_focus
-            .map_or(false, |input_focus| input_focus == id)
     }
 
     pub fn top_level(&self) -> bool {
@@ -201,6 +188,78 @@ impl StyleStack {
     }
 }
 
+pub(crate) struct TabSelector {
+    counter: isize,
+    wants: Option<isize>,
+    to_change: Option<isize>,
+}
+
+impl TabSelector {
+    fn new() -> Self {
+        TabSelector {
+            counter: 0,
+            wants: None,
+            to_change: None,
+        }
+    }
+
+    fn new_frame(&mut self) {
+        self.to_change = if self.wants == Some(-1) {
+            Some(self.counter - 1)
+        } else if self.wants == Some(self.counter) {
+            Some(0)
+        } else {
+            self.wants
+        };
+        self.wants = None;
+        self.counter = 0;
+    }
+
+    /// Returns true if this widget should gain focus, because user pressed `Tab` or `Shift + Tab`.
+    pub(crate) fn register_selectable_widget(&mut self, has_focus: bool, input: &Input) -> bool {
+        if has_focus {
+            enum PressedTabKey {
+                Tab,
+                ShiftTab,
+                Other,
+            }
+
+            let key = if input
+                .input_buffer
+                .iter()
+                .any(|inp| inp.key == Key::KeyCode(KeyCode::Tab) && inp.modifier_shift)
+            {
+                PressedTabKey::ShiftTab
+            } else if input
+                .input_buffer
+                .iter()
+                .any(|inp| inp.key == Key::KeyCode(KeyCode::Tab))
+            {
+                PressedTabKey::Tab
+            } else {
+                PressedTabKey::Other
+            };
+
+            match key {
+                PressedTabKey::Tab => self.wants = Some(self.counter + 1),
+                PressedTabKey::ShiftTab => self.wants = Some(self.counter - 1),
+                PressedTabKey::Other => {}
+            }
+        }
+
+        let result = if self.to_change.map(|id| id == self.counter).unwrap_or(false) {
+            self.to_change = None;
+            true
+        } else {
+            false
+        };
+
+        self.counter += 1;
+
+        result
+    }
+}
+
 pub struct Ui {
     input: Input,
     skin_stack: StyleStack,
@@ -240,6 +299,9 @@ pub struct Ui {
     clipboard: Box<dyn crate::ui::ClipboardObject>,
 
     key_repeat: key_repeat::KeyRepeat,
+
+    tab_selector: TabSelector,
+    input_focus: Option<Id>,
 }
 
 #[derive(Default)]
@@ -282,6 +344,8 @@ pub(crate) struct WindowContext<'a> {
     pub focused: bool,
     pub last_item_clicked: &'a mut bool,
     pub last_item_hovered: &'a mut bool,
+    pub tab_selector: &'a mut TabSelector,
+    pub input_focus: &'a mut Option<Id>,
 }
 
 impl<'a> WindowContext<'a> {
@@ -384,6 +448,11 @@ impl<'a> WindowContext<'a> {
 
         (*self.last_item_hovered, *self.last_item_clicked)
     }
+
+    pub fn input_focused(&self, id: Id) -> bool {
+        self.input_focus
+            .map_or(false, |input_focus| input_focus == id)
+    }
 }
 
 impl InputHandler for Ui {
@@ -442,7 +511,7 @@ impl InputHandler for Ui {
         let position = Vec2::new(position.0, position.1);
 
         // assuming that the click was to the root window
-        // if it is not - hovered_window will be setted a little later in that function
+        // if it is not - hovered_window will be set a little later in that function
         self.hovered_window = 0;
         for window in self.windows_focus_order.iter() {
             let window = &self.windows[window];
@@ -568,6 +637,8 @@ impl Ui {
             key_repeat: key_repeat::KeyRepeat::new(),
             last_item_clicked: false,
             last_item_hovered: false,
+            tab_selector: TabSelector::new(),
+            input_focus: None,
         }
     }
 
@@ -615,7 +686,7 @@ impl Ui {
         let parent_force_focus = match parent {
             // childs of root window are always force_focused
             Some(0) => true,
-            // childs of force_focused windows are alwayws force_focused as well
+            // childs of force_focused windows are always force_focused as well
             Some(parent) => self
                 .windows
                 .get(&parent)
@@ -654,8 +725,8 @@ impl Ui {
         window.active = true;
         window.painter.clipping_zone = parent_clip_rect;
 
-        // top level windows are moveble, so we update their position only on the first frame
-        // while the child windows are not moveble and should update their position each frame
+        // top level windows are movable, so we update their position only on the first frame
+        // while the child windows are not movable and should update their position each frame
         if parent.is_some() {
             window.set_position(position);
         }
@@ -674,6 +745,8 @@ impl Ui {
             clipboard: &mut *self.clipboard,
             last_item_clicked: &mut self.last_item_clicked,
             last_item_hovered: &mut self.last_item_hovered,
+            tab_selector: &mut self.tab_selector,
+            input_focus: &mut self.input_focus,
         }
     }
 
@@ -719,6 +792,8 @@ impl Ui {
             clipboard: &mut *self.clipboard,
             last_item_clicked: &mut self.last_item_clicked,
             last_item_hovered: &mut self.last_item_hovered,
+            tab_selector: &mut self.tab_selector,
+            input_focus: &mut self.input_focus,
         }
     }
 
@@ -764,6 +839,8 @@ impl Ui {
             clipboard: &mut *self.clipboard,
             last_item_clicked: &mut self.last_item_clicked,
             last_item_hovered: &mut self.last_item_hovered,
+            tab_selector: &mut self.tab_selector,
+            input_focus: &mut self.input_focus,
         }
     }
 
@@ -915,6 +992,8 @@ impl Ui {
         self.drag_hovered = None;
         self.input.reset();
         self.input.window_active = self.hovered_window == 0;
+
+        self.tab_selector.new_frame();
 
         self.key_repeat.new_frame(self.time);
 
@@ -1121,7 +1200,7 @@ pub(crate) mod ui_context {
         }
 
         pub(crate) fn draw(&mut self) {
-            // TODO: this belongs to new and waits for cleaing up context initialisation mess
+            // TODO: this belongs to new and waits for cleaning up context initialization mess
             let material = self.material.get_or_insert_with(|| {
                 let fragment_shader = FRAGMENT_SHADER.to_string();
                 let vertex_shader = VERTEX_SHADER.to_string();

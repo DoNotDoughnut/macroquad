@@ -1,4 +1,4 @@
-//! Mose common types that can be glob-imported `use macroquad::prelude::*` for convenience.
+//! Most common types that can be glob-imported `use macroquad::prelude::*` for convenience.
 
 pub use crate::camera::*;
 pub use crate::file::*;
@@ -24,3 +24,5 @@ pub use crate::experimental::*;
 pub use crate::logging::*;
 
 pub use crate::color_u8;
+
+pub use image::ImageFormat;

@@ -1,21 +1,21 @@
 //!
 //! `macroquad` is a simple and easy to use game library for Rust programming language.
-//!  
+//!
 //! `macroquad` attempts to avoid any rust-specific programming concepts like lifetimes/borrowing, making it very friendly for rust beginners.
-//!  
+//!
 //! ## Supported platforms
-//!  
+//!
 //! * PC: Windows/Linux/MacOS
 //! * HTML5
 //! * Android
 //! * IOS
-//!  
+//!
 //! ## Features
-//!  
+//!
 //! * Same code for all supported platforms, no platform dependent defines required
 //! * Efficient 2D rendering with automatic geometry batching
 //! * Minimal amount of dependencies: build after `cargo clean` takes only 16s on x230(~6years old laptop)
-//! * Immidiate mode UI library included
+//! * Immediate mode UI library included
 //! * Single command deploy for both WASM and Android [build instructions](https://github.com/not-fl3/miniquad/#building-examples)
 //! # Example
 //! ```no_run
@@ -25,12 +25,12 @@
 //! async fn main() {
 //!     loop {
 //!         clear_background(RED);
-//!  
+//!
 //!         draw_line(40.0, 40.0, 100.0, 200.0, 15.0, BLUE);
 //!         draw_rectangle(screen_width() / 2.0 - 60.0, 100.0, 120.0, 60.0, GREEN);
 //!         draw_circle(screen_width() - 30.0, screen_height() - 30.0, 15.0, YELLOW);
 //!         draw_text("HELLO", 20.0, 20.0, 20.0, DARKGRAY);
-//!  
+//!
 //!         next_frame().await
 //!     }
 //! }
@@ -47,6 +47,8 @@ mod drawing;
 mod exec;
 mod quad_gl;
 
+#[cfg(feature = "audio")]
+pub mod audio;
 pub mod camera;
 pub mod color;
 pub mod file;
@@ -93,6 +95,8 @@ use ui::ui_context::UiContext;
 
 struct Context {
     quad_context: QuadContext,
+    #[cfg(feature = "audio")]
+    audio_context: audio::AudioContext,
 
     screen_width: f32,
     screen_height: f32,
@@ -101,6 +105,7 @@ struct Context {
 
     keys_down: HashSet<KeyCode>,
     keys_pressed: HashSet<KeyCode>,
+    keys_released: HashSet<KeyCode>,
     mouse_down: HashSet<MouseButton>,
     mouse_pressed: HashSet<MouseButton>,
     mouse_released: HashSet<MouseButton>,
@@ -123,6 +128,9 @@ struct Context {
     start_time: f64,
     last_frame_time: f64,
     frame_time: f64,
+
+    #[cfg(one_screenshot)]
+    counter: usize,
 }
 
 #[derive(Clone)]
@@ -205,6 +213,7 @@ impl Context {
 
             keys_down: HashSet::new(),
             keys_pressed: HashSet::new(),
+            keys_released: HashSet::new(),
             chars_pressed_queue: Vec::new(),
             mouse_down: HashSet::new(),
             mouse_pressed: HashSet::new(),
@@ -224,11 +233,16 @@ impl Context {
             fonts_storage: text::FontsStorage::new(&mut ctx),
 
             quad_context: ctx,
+            #[cfg(feature = "audio")]
+            audio_context: audio::AudioContext::new(),
             coroutines_context: experimental::coroutines::CoroutinesContext::new(),
 
             start_time: miniquad::date::now(),
             last_frame_time: miniquad::date::now(),
             frame_time: 1. / 60.,
+
+            #[cfg(one_screenshot)]
+            counter: 0,
         }
     }
 
@@ -238,11 +252,10 @@ impl Context {
         #[cfg(feature = "ui")]
         self.ui_context.process_input();
         self.clear(Self::DEFAULT_BG_COLOR);
-        self.draw_context
-            .update_projection_matrix(&mut self.quad_context);
     }
 
     fn end_frame(&mut self) {
+
         #[cfg(feature = "ui")]
         self.ui_context.draw();
 
@@ -251,10 +264,20 @@ impl Context {
 
         self.quad_context.commit_frame();
 
+        #[cfg(one_screenshot)]
+        {
+            get_context().counter += 1;
+            if get_context().counter == 3 {
+                crate::prelude::get_screen_data().export_png("screenshot.png");
+                panic!("screenshot successfully saved to `screenshot.png`");
+            }
+        }
+
         telemetry::end_gpu_query();
 
         self.mouse_wheel = Vec2::new(0., 0.);
         self.keys_pressed.clear();
+        self.keys_released.clear();
         self.mouse_pressed.clear();
         self.mouse_released.clear();
 
@@ -276,8 +299,6 @@ impl Context {
         self.quad_context
             .clear(Some((color.r, color.g, color.b, color.a)), None, None);
         self.draw_context.gl.reset();
-        self.draw_context
-            .update_projection_matrix(&mut self.quad_context);
     }
 }
 
@@ -303,14 +324,16 @@ impl EventHandlerFree for Stage {
 
         if context.cursor_grabbed {
             context.mouse_position += Vec2::new(x, y);
-    
-            let event = MiniquadInputEvent::MouseMotion { x: context.mouse_position.x, y: context.mouse_position.y };
+
+            let event = MiniquadInputEvent::MouseMotion {
+                x: context.mouse_position.x,
+                y: context.mouse_position.y,
+            };
             context
                 .input_events
                 .iter_mut()
                 .for_each(|arr| arr.push(event.clone()));
         }
-
     }
 
     fn mouse_motion_event(&mut self, x: f32, y: f32) {
@@ -318,7 +341,7 @@ impl EventHandlerFree for Stage {
 
         if !context.cursor_grabbed {
             context.mouse_position = Vec2::new(x, y);
-            
+
             context
                 .input_events
                 .iter_mut()
@@ -362,7 +385,7 @@ impl EventHandlerFree for Stage {
 
         if !context.cursor_grabbed {
             context.mouse_position = Vec2::new(x, y);
-    
+
             context
                 .input_events
                 .iter_mut()
@@ -435,6 +458,7 @@ impl EventHandlerFree for Stage {
     fn key_up_event(&mut self, keycode: KeyCode, modifiers: KeyMods) {
         let context = get_context();
         context.keys_down.remove(&keycode);
+        context.keys_released.insert(keycode);
 
         context
             .input_events
@@ -519,9 +543,7 @@ impl Window {
                 unsafe {
                     MAIN_FUTURE = Some(Box::pin(future));
                 }
-                unsafe {
-                    CONTEXT = Some(Context::new(ctx))
-                };
+                unsafe { CONTEXT = Some(Context::new(ctx)) };
                 UserData::free(Stage {})
             },
         );

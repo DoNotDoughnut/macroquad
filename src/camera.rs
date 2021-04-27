@@ -121,82 +121,8 @@ impl Camera2D {
     }
 }
 
-// #[derive(Debug, Clone, Copy)]
-// pub enum Projection {
-//     Perspective,
-//     Orthographics,
-// }
-
-// #[derive(Debug, Clone, Copy)]
-// pub struct Camera3D {
-//     /// Camera position
-//     pub position: Vec3,
-//     /// Camera target it looks-at
-//     pub target: Vec3,
-//     /// Camera up vector (rotation over its axis)
-//     pub up: Vec3,
-//     /// Camera field-of-view apperture in Y (degrees)
-//     /// in perspective, used as near plane width in orthographic
-//     pub fovy: f32,
-//     /// Screen aspect ratio
-//     /// By default aspect is calculated with screen_width() / screen_height() on each frame
-//     pub aspect: Option<f32>,
-//     /// Camera projection type, perspective or orthographics
-//     pub projection: Projection,
-
-//     /// If "render_target" is set - camera will render to texture
-//     /// otherwise to the screen
-//     pub render_target: Option<RenderTarget>,
-// }
-
-// impl Default for Camera3D {
-//     fn default() -> Camera3D {
-//         Camera3D {
-//             position: vec3(0., -10., 0.),
-//             target: vec3(0., 0., 0.),
-//             aspect: None,
-//             up: vec3(0., 0., 1.),
-//             fovy: 45.,
-//             projection: Projection::Perspective,
-//             render_target: None,
-//         }
-//     }
-// }
-
-// impl Camera3D {
-//     const Z_NEAR: f32 = 0.01;
-//     const Z_FAR: f32 = 10000.0;
-// }
-// impl Camera for Camera3D {
-//     fn matrix(&self) -> Mat4 {
-//         let aspect = self.aspect.unwrap_or(screen_width() / screen_height());
-
-//         match self.projection {
-//             Projection::Perspective => {
-//                 Mat4::perspective_rh_gl(self.fovy, aspect, Self::Z_NEAR, Self::Z_FAR)
-//                     * Mat4::look_at_rh(self.position, self.target, self.up)
-//             }
-//             Projection::Orthographics => {
-//                 let top = self.fovy / 2.0;
-//                 let right = top * aspect;
-
-//                 Mat4::orthographic_rh_gl(-right, right, -top, top, Self::Z_NEAR, Self::Z_FAR)
-//                     * Mat4::look_at_rh(self.position, self.target, self.up)
-//             }
-//         }
-//     }
-
-//     fn depth_enabled(&self) -> bool {
-//         true
-//     }
-
-//     fn render_pass(&self) -> Option<miniquad::RenderPass> {
-//         self.render_target.map(|rt| rt.render_pass)
-//     }
-// }
-
 /// Set active 2D or 3D camera
-pub fn set_camera<T: Camera>(camera: T) {
+pub fn set_camera(camera: &dyn Camera) {
     let context = get_context();
 
     // flush previous camera draw calls
@@ -208,9 +134,6 @@ pub fn set_camera<T: Camera>(camera: T) {
     context.draw_context.gl.render_pass(camera.render_pass());
     context.draw_context.gl.depth_test(camera.depth_enabled());
     context.draw_context.camera_matrix = Some(camera.matrix());
-    context
-        .draw_context
-        .update_projection_matrix(&mut context.quad_context);
 }
 
 /// Reset default 2D camera mode
@@ -226,7 +149,4 @@ pub fn set_default_camera() {
     context.draw_context.gl.render_pass(None);
     context.draw_context.gl.depth_test(false);
     context.draw_context.camera_matrix = None;
-    context
-        .draw_context
-        .update_projection_matrix(&mut context.quad_context);
 }

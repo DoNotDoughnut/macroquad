@@ -110,6 +110,13 @@ pub fn is_key_down(key_code: KeyCode) -> bool {
     context.keys_down.contains(&key_code)
 }
 
+/// Detect if the key has been released this frame
+pub fn is_key_released(key_code: KeyCode) -> bool {
+    let context = get_context();
+
+    context.keys_released.contains(&key_code)
+}
+
 /// Return the last pressed char.
 /// Each "get_char_pressed" call will consume a character from the input queue.
 pub fn get_char_pressed() -> Option<char> {
@@ -156,7 +163,7 @@ fn convert_to_local(pixel_pos: Vec2) -> Vec2 {
 pub mod utils {
     use crate::get_context;
 
-    /// Functions in this module should be used by external tools that uses miniquad system, like different UI librarires. User shouldn't use this function.
+    /// Functions in this module should be used by external tools that uses miniquad system, like different UI libraries. User shouldn't use this function.
 
     /// Register input subscriber. Returns subscriber identifier that must be used in `repeat_all_miniquad_input`.
     pub fn register_input_subscriber() -> usize {
