@@ -4,7 +4,7 @@ use crate::{
     Color,
 };
 
-use std::collections::HashMap;
+use ahash::AHashMap as HashMap;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Sprite {

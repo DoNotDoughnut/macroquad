@@ -1,6 +1,6 @@
 //! Functions to load fonts and draw text.
 
-use std::collections::HashMap;
+use ahash::AHashMap as HashMap;
 
 use crate::{
     color::Color,

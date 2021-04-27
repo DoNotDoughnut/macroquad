@@ -1107,7 +1107,7 @@ impl Ui {
 }
 
 pub(crate) mod ui_context {
-    use std::collections::HashMap;
+    use ahash::AHashMap as HashMap;
 
     use crate::prelude::*;
     use crate::window::miniquad::*;

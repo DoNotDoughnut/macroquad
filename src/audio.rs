@@ -2,7 +2,7 @@
 
 use crate::{file::load_file, get_context};
 
-use std::collections::HashMap;
+use ahash::AHashMap as HashMap;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[path = "audio/native_snd.rs"]
