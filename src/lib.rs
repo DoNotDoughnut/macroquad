@@ -77,7 +77,7 @@ pub use macroquad_macro::main;
 
 /// Cross platform random generator.
 pub mod rand {
-    pub use firecore_rand::*;
+    pub use firecore_util::Random;
 }
 
 #[cfg(feature = "log-impl")]

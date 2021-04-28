@@ -20,7 +20,7 @@ audio = ["rodio"]
 
 [dependencies]
 miniquad = { git = "https://github.com/DoNotDoughnut/miniquad" }
-firecore-rand = { git = "https://github.com/DoNotDoughnut/firecore-rand" }
+firecore-util = { git = "https://github.com/DoNotDoughnut/firecore-util", default-features = false, features = ["random"] }
 glam = {version = "0.14", features = ["scalar-math"] }
 image = { version = "0.23.12", default-features = false, features = ["png", "tga"] }
 macroquad_macro = { version = "0.1.2", path = "macroquad_macro" }
