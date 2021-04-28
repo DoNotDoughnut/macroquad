@@ -39,7 +39,7 @@
 use miniquad::Context as QuadContext;
 use miniquad::*;
 
-use ahash::{AHashMap as HashMap, AHashSet as HashSet};
+use firecore_dependencies::hash::{HashMap, HashSet};
 use std::future::Future;
 use std::pin::Pin;
 
@@ -77,7 +77,7 @@ pub use macroquad_macro::main;
 
 /// Cross platform random generator.
 pub mod rand {
-    pub use firecore_util::Random;
+    pub use firecore_dependencies::Random;
 }
 
 #[cfg(feature = "log-impl")]
