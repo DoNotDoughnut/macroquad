@@ -16,7 +16,7 @@
 
 use std::any::{Any, TypeId};
 
-use firecore_dependencies::hash::HashMap;
+use ahash::AHashMap as HashMap;
 use std::{
     cell::RefCell,
     ops::{Deref, DerefMut},

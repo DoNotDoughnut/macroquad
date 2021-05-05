@@ -1,6 +1,6 @@
 use crate::time::get_time;
 
-use firecore_dependencies::hash::HashMap;
+use ahash::AHashMap as HashMap;
 
 static mut PROFILER: Option<Profiler> = None;
 

@@ -39,7 +39,7 @@
 use miniquad::Context as QuadContext;
 use miniquad::*;
 
-use firecore_dependencies::hash::{HashMap, HashSet};
+use ahash::{AHashMap as HashMap, AHashSet as HashSet};
 use std::future::Future;
 use std::pin::Pin;
 
@@ -74,11 +74,6 @@ pub mod telemetry;
 // TODO: write something about macroquad entrypoint
 #[doc(hidden)]
 pub use macroquad_macro::main;
-
-/// Cross platform random generator.
-pub mod rand {
-    pub use firecore_dependencies::Random;
-}
 
 #[cfg(feature = "log-impl")]
 /// Logging macros, available with "log-impl" feature.
