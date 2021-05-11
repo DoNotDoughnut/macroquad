@@ -82,9 +82,9 @@ pub mod logging {
 }
 pub use miniquad;
 
+use color::{colors::*, Color};
 use drawing::DrawContext;
 use glam::{vec2, Vec2};
-use quad_gl::{colors::*, Color};
 #[cfg(feature = "ui")]
 use ui::ui_context::UiContext;
 

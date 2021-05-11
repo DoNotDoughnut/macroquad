@@ -4,11 +4,17 @@ use crate::{file::load_file, get_context};
 
 use ahash::AHashMap as HashMap;
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(not(feature = "audio"), target_os = "android"))]
+#[path = "audio/no_sound.rs"]
+mod snd;
+
+#[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
+#[cfg(feature = "audio")]
 #[path = "audio/native_snd.rs"]
 mod snd;
 
 #[cfg(target_arch = "wasm32")]
+#[cfg(feature = "audio")]
 #[path = "audio/web_snd.rs"]
 mod snd;
 
@@ -36,7 +42,13 @@ pub struct Sound(usize);
 /// Attempts to automatically detect the format of the source of data.
 pub async fn load_sound(path: &str) -> Result<Sound, crate::file::FileError> {
     let data = load_file(path).await?;
+    load_sound_from_bytes(&data).await
+}
 
+/// Load audio data.
+///
+/// Attempts to automatically detect the format of the source of data.
+pub async fn load_sound_from_bytes(data: &[u8]) -> Result<Sound, crate::file::FileError> {
     let sound = load_native_snd(&data).await;
 
     let ctx = &mut get_context().audio_context;
@@ -46,17 +58,26 @@ pub async fn load_sound(path: &str) -> Result<Sound, crate::file::FileError> {
     Ok(Sound(id))
 }
 
+#[cfg(not(feature = "audio"))]
+async fn load_native_snd(data: &[u8]) -> snd::Sound {
+    let ctx = &mut get_context().audio_context.native_ctx;
+    snd::Sound::load(ctx, &data)
+}
+
+#[cfg(feature = "audio")]
 #[cfg(target_arch = "wasm32")]
 async fn load_native_snd(data: &[u8]) -> snd::Sound {
     snd::Sound::load(&data).await
 }
 
+#[cfg(feature = "audio")]
 #[cfg(not(target_arch = "wasm32"))]
 async fn load_native_snd(data: &[u8]) -> snd::Sound {
     let ctx = &mut get_context().audio_context.native_ctx;
 
     snd::Sound::load(ctx, &data)
 }
+
 pub fn play_sound_once(sound: Sound) {
     let ctx = &mut get_context().audio_context;
     let sound = &mut ctx.sounds.get_mut(&sound.0).unwrap();

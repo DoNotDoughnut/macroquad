@@ -1,12 +1,15 @@
 #[macro_export]
 macro_rules! hash {
     ($s:expr) => {{
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
+        use ahash::RandomState;
+        use std::hash::{Hash, Hasher, BuildHasher};
+
+        static mut STATE: Option<RandomState> = None;
 
         let id = $s;
 
-        let mut s = DefaultHasher::new();
+        let state = unsafe { STATE.get_or_insert(RandomState::new()) };
+        let mut s = state.build_hasher();
         id.hash(&mut s);
         s.finish()
     }};
