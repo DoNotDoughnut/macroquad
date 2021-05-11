@@ -12,7 +12,7 @@ Fork of a simple and easy to use graphics library
 readme="README.md"
 
 [features]
-default = ["log-impl", "audio"]
+default = ["log-impl"]
 log-impl = ["miniquad/log-impl"]
 ui = ["text"]
 text = ["fontdue"]
