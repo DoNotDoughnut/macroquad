@@ -43,7 +43,6 @@ use ahash::{AHashMap as HashMap, AHashSet as HashSet};
 use std::future::Future;
 use std::pin::Pin;
 
-mod drawing;
 mod exec;
 mod quad_gl;
 
@@ -71,8 +70,55 @@ pub mod prelude;
 
 pub mod telemetry;
 
-// TODO: write something about macroquad entrypoint
-#[doc(hidden)]
+/// Macroquad entry point.
+///
+/// ```skip
+/// #[main("Window name")]
+/// async fn main() {
+/// }
+/// ```
+///
+/// ```skip
+/// fn window_conf() -> Conf {
+///     Conf {
+///         window_title: "Window name".to_owned(),
+///         fullscreen: true,
+///         ..Default::default()
+///     }
+/// }
+/// #[macroquad::main(window_conf)]
+/// async fn main() {
+/// }
+/// ```
+///
+/// ## Error handling
+///
+/// `async fn main()` can have the same signature as a normal `main` in Rust.
+/// The most typical use cases are:
+/// * `async fn main() {}`
+/// * `async fn main() -> Result<(), Error> {}` (note that `Error` should implement `Debug`)
+///
+/// When a lot of third party crates are involved and very different errors may happens, `anyhow` crate may help:
+/// * `async fn main() -> anyhow::Result<()> {}`
+///
+/// For better control over game errors custom error type may be introduced:
+/// ```skip
+/// #[derive(Debug)]
+/// enum GameError {
+///     FileError(macroquad::FileError),
+///     SomeThirdPartyCrateError(somecrate::Error)
+/// }
+/// impl From<macroquad::file::FileError> for GameError {
+///     fn from(error: macroquad::file::FileError) -> GameError {
+///         GameError::FileError(error)
+///     }
+/// }
+/// impl From<somecrate::Error> for GameError {
+///     fn from(error: somecrate::Error) -> GameError {
+///         GameError::SomeThirdPartyCrateError(error)
+///     }
+/// }
+/// ```
 pub use macroquad_macro::main;
 
 #[cfg(feature = "log-impl")]
@@ -82,11 +128,15 @@ pub mod logging {
 }
 pub use miniquad;
 
-use color::{colors::*, Color};
-use drawing::DrawContext;
-use glam::{vec2, Vec2};
+use crate::{
+    color::{colors::*, Color},
+    quad_gl::QuadGl,
+};
+
 #[cfg(feature = "ui")]
 use ui::ui_context::UiContext;
+
+use glam::{vec2, Mat4, Vec2};
 
 struct Context {
     quad_context: QuadContext,
@@ -113,12 +163,14 @@ struct Context {
 
     input_events: Vec<Vec<MiniquadInputEvent>>,
 
-    draw_context: DrawContext,
-    #[cfg(feature = "ui")]
-    ui_context: UiContext,
+    gl: QuadGl,
+    camera_matrix: Option<Mat4>,
+
+    #[cfg(feature = "ui")] ui_context: UiContext,
     coroutines_context: experimental::coroutines::CoroutinesContext,
-    #[cfg(feature = "text")]
-    fonts_storage: text::FontsStorage,
+    #[cfg(feature = "text")] fonts_storage: text::FontsStorage,
+
+    pc_assets_folder: Option<String>,
 
     start_time: f64,
     last_frame_time: f64,
@@ -221,16 +273,17 @@ impl Context {
 
             input_events: Vec::new(),
 
-            draw_context: DrawContext::new(&mut ctx),
-            #[cfg(feature = "ui")]
-            ui_context: UiContext::new(&mut ctx),
-            #[cfg(feature = "text")]
-            fonts_storage: text::FontsStorage::new(&mut ctx),
+            camera_matrix: None,
+            gl: QuadGl::new(&mut ctx),
+
+            #[cfg(feature = "ui")] ui_context: UiContext::new(&mut ctx),
+            #[cfg(feature = "text")] fonts_storage: text::FontsStorage::new(&mut ctx),
 
             quad_context: ctx,
-            #[cfg(feature = "audio")]
-            audio_context: audio::AudioContext::new(),
+            #[cfg(feature = "audio")] audio_context: audio::AudioContext::new(),
             coroutines_context: experimental::coroutines::CoroutinesContext::new(),
+
+            pc_assets_folder: None,
 
             start_time: miniquad::date::now(),
             last_frame_time: miniquad::date::now(),
@@ -251,11 +304,11 @@ impl Context {
 
     fn end_frame(&mut self) {
 
-        #[cfg(feature = "ui")]
-        self.ui_context.draw();
+        self.perform_render_passes();
 
-        self.draw_context
-            .perform_render_passes(&mut self.quad_context);
+        #[cfg(feature = "ui")] self.ui_context.draw(&mut self.quad_context, &mut self.gl);
+        let screen_mat = self.pixel_perfect_projection_matrix();
+        self.gl.draw(&mut self.quad_context, screen_mat);
 
         self.quad_context.commit_frame();
 
@@ -293,7 +346,27 @@ impl Context {
     fn clear(&mut self, color: Color) {
         self.quad_context
             .clear(Some((color.r, color.g, color.b, color.a)), None, None);
-        self.draw_context.gl.reset();
+        self.gl.reset();
+    }
+
+    pub(crate) fn pixel_perfect_projection_matrix(&self) -> glam::Mat4 {
+        let (width, height) = self.quad_context.screen_size();
+
+        glam::Mat4::orthographic_rh_gl(0., width, height, 0., -1., 1.)
+    }
+
+    pub(crate) fn projection_matrix(&self) -> glam::Mat4 {
+        if let Some(matrix) = self.camera_matrix {
+            matrix
+        } else {
+            self.pixel_perfect_projection_matrix()
+        }
+    }
+
+    pub(crate) fn perform_render_passes(&mut self) {
+        let matrix = self.projection_matrix();
+
+        self.gl.draw(&mut self.quad_context, matrix);
     }
 }
 

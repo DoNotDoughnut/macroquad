@@ -1,4 +1,5 @@
 #[macro_export]
+#[doc(hidden)]
 macro_rules! hash {
     ($s:expr) => {{
         use ahash::RandomState;

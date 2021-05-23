@@ -225,7 +225,8 @@ impl Painter {
         let background_margin = style.background_margin.unwrap_or_default();
         let margin = style.margin.unwrap_or_default();
 
-        let top_coord = (font_size as f32 - text_measures.height as f32) / 2.
+        let top_coord = (font_size as f32) / 2.
+            - (text_measures.height / 2.).trunc() // sometimes height is odd, therefore pixelated text is offsetted by 0.5px, which is not good, so this is why we get trunc of half of this value
             + margin.top
             + background_margin.top;
 
@@ -248,7 +249,7 @@ impl Painter {
         font: &mut FontInternal,
         font_size: u16,
     ) -> TextDimensions {
-        font.measure_text(label, font_size, 1.0)
+        font.measure_text(label, font_size, 1.0, 1.0)
     }
 
     /// If character is in font atlas - will return x advance from position to potential next character position
